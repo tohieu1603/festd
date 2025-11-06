@@ -90,8 +90,8 @@ export const useAuthStore = create<AuthStore>()(
     {
       name: 'auth-storage',
       partialize: (state) => ({
+        // Do NOT persist isAuthenticated - it should be determined by token validity
         user: state.user,
-        isAuthenticated: state.isAuthenticated,
       }),
     }
   )
