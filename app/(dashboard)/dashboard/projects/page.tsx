@@ -1,17 +1,17 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Search, Grid, List, X, SlidersHorizontal, Calendar, FolderKanban } from 'lucide-react';
+import { Plus, Search, Grid, List, X, SlidersHorizontal, Calendar, FolderKanban, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { ProjectCard } from '@/components/features/ProjectCard';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { AddProjectModal } from '@/components/projects/AddProjectModal';
-import { TokenChecker } from '@/components/debug/TokenChecker';
 import type { Project, ProjectStatus } from '@/lib/types';
-import { api, buildQueryString } from '@/lib/api';
+import { api } from '@/lib/api';
 import { formatCurrency, formatDateShort } from '@/lib/utils';
+import { useAuthStore } from '@/stores/auth.store';
 
 const statusLabels: Record<ProjectStatus, string> = {
   pending: 'Chờ xác nhận',
@@ -43,6 +43,8 @@ export default function ProjectsPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const { user } = useAuthStore();
 
   useEffect(() => {
     fetchProjects();
@@ -69,6 +71,35 @@ export default function ProjectsPage() {
     setStatusFilter('all');
     setDateRange({ start: '', end: '' });
   };
+
+  const handleConfirmProject = async () => {
+    if (!selectedProject || selectedProject.status !== 'pending') return;
+
+    setConfirmLoading(true);
+    try {
+      await api.patch(`/projects/${selectedProject.id}/`, {
+        status: 'confirmed'
+      });
+
+      // Update local state
+      setProjects(projects.map(p =>
+        p.id === selectedProject.id
+          ? { ...p, status: 'confirmed' as ProjectStatus }
+          : p
+      ));
+      setSelectedProject({ ...selectedProject, status: 'confirmed' });
+
+      alert('Đã xác nhận dự án thành công!');
+    } catch (error) {
+      console.error('Failed to confirm project:', error);
+      alert('Không thể xác nhận dự án. Vui lòng thử lại.');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  // Check if user has permission to confirm projects
+  const canConfirmProject = user && ['admin', 'Manager'].includes(user.role);
 
   // Filtered projects
   const filteredProjects = useMemo(() => {
@@ -118,9 +149,6 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Token Debug */}
-      <TokenChecker />
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -429,6 +457,25 @@ export default function ProjectsPage() {
               >
                 Đóng
               </Button>
+              {canConfirmProject && selectedProject.status === 'pending' && (
+                <Button
+                  onClick={handleConfirmProject}
+                  disabled={confirmLoading}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {confirmLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Đang xác nhận...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Xác nhận dự án
+                    </>
+                  )}
+                </Button>
+              )}
               <Button>Chỉnh sửa</Button>
             </ModalFooter>
           </div>
