@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { LogIn } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/Button';
@@ -78,8 +79,14 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-4 text-center text-sm text-muted-foreground">
+        <div className="mt-4 text-center text-sm text-muted-foreground space-y-2">
           <p>Quên mật khẩu? Liên hệ quản trị viên</p>
+          <p>
+            Chưa có tài khoản?{' '}
+            <Link href="/register" className="text-primary hover:underline font-medium">
+              Đăng ký ngay
+            </Link>
+          </p>
         </div>
       </CardContent>
     </Card>
