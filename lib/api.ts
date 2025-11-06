@@ -3,7 +3,7 @@ import type { AuthTokens, LoginCredentials, ApiError } from './types';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 // Token management
-const TOKEN_KEY = 'access_token';
+const TOKEN_KEY = 'token'; // Use 'token' for consistency with existing code
 const REFRESH_TOKEN_KEY = 'refresh_token';
 
 export function getAccessToken(): string | null {
@@ -26,6 +26,8 @@ export function clearTokens(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+  // Also clear any old token keys for consistency
+  localStorage.removeItem('access_token');
 }
 
 // API Client
