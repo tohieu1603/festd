@@ -11,14 +11,17 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { fetchUser, isAuthenticated } = useAuthStore();
+  const { fetchUser, isAuthenticated, user } = useAuthStore();
 
   useEffect(() => {
-    // Fetch user data on mount if authenticated
-    if (isAuthenticated) {
+    
+    // Only fetch user data if authenticated but user data is not loaded yet
+    if (isAuthenticated && !user) {
       fetchUser();
+      console.log("HELLO")
     }
-  }, [isAuthenticated, fetchUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
