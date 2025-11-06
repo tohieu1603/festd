@@ -50,8 +50,8 @@ export function ChartCard({
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          {type === 'line' && (
+        {type === 'line' && (
+          <ResponsiveContainer width="100%" height={300}>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={xAxisKey} />
@@ -65,9 +65,10 @@ export function ChartCard({
                 strokeWidth={2}
               />
             </LineChart>
-          )}
-
-          {type === 'bar' && (
+          </ResponsiveContainer>
+        )}
+        {type === 'bar' && (
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={xAxisKey} />
@@ -76,9 +77,10 @@ export function ChartCard({
               <Legend />
               <Bar dataKey={dataKey} fill="#3b82f6" />
             </BarChart>
-          )}
-
-          {type === 'pie' && (
+          </ResponsiveContainer>
+        )}
+        {type === 'pie' && (
+          <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
                 data={data}
@@ -92,7 +94,7 @@ export function ChartCard({
                 fill="#8884d8"
                 dataKey={dataKey}
               >
-                {data.map((entry, index) => (
+                {data.map((_entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={COLORS[index % COLORS.length]}
@@ -101,8 +103,8 @@ export function ChartCard({
               </Pie>
               <Tooltip />
             </PieChart>
-          )}
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        )}
       </CardContent>
     </Card>
   );

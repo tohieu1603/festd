@@ -6,7 +6,7 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { ChartCard } from '@/components/dashboard/ChartCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import type { DashboardStats, ChartDataPoint } from '@/lib/types';
-import { api } from '@/lib/api';
+// import { api } from '@/lib/api';
 import { formatRelativeTime } from '@/lib/utils';
 
 export default function DashboardPage() {
@@ -23,7 +23,7 @@ export default function DashboardPage() {
       if (!token) return;
 
       // Fetch real data from APIs
-      const [projectsRes, employeesRes, salariesRes, packagesRes] = await Promise.all([
+      const [projectsRes, employeesRes, salariesRes] = await Promise.all([
         fetch('http://localhost:8000/api/projects/', {
           headers: { Authorization: `Bearer ${token}` }
         }),
@@ -32,16 +32,13 @@ export default function DashboardPage() {
         }),
         fetch('http://localhost:8000/api/salaries/', {
           headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch('http://localhost:8000/api/packages/', {
-          headers: { Authorization: `Bearer ${token}` }
         })
       ]);
 
       const projects = projectsRes.ok ? await projectsRes.json() : { total: 0, items: [] };
       const employees = employeesRes.ok ? await employeesRes.json() : { total: 0, items: [] };
       const salaries = salariesRes.ok ? await salariesRes.json() : { total: 0, items: [] };
-      const packages = packagesRes.ok ? await packagesRes.json() : { total: 0, items: [] };
+      // const packages = packagesRes.ok ? await packagesRes.json() : { total: 0, items: [] };
 
       // Calculate stats
       const activeProjects = projects.items?.filter((p: any) =>

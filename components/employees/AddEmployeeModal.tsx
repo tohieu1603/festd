@@ -132,7 +132,7 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess, employee: editEmp
   const handleSkillToggle = (skill: string) => {
     setFormData(prev => {
       const skills = prev.skills.includes(skill)
-        ? prev.skills.filter(s => s !== skill)
+        ? prev.skills.filter((s: string) => s !== skill)
         : [...prev.skills, skill];
       return { ...prev, skills };
     });

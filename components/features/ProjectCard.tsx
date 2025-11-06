@@ -1,4 +1,4 @@
-import { Calendar, DollarSign, Users, MapPin, Clock } from 'lucide-react';
+import { Calendar, Users, MapPin, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import type { Project, ProjectStatus } from '@/lib/types';

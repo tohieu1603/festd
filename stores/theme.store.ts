@@ -62,7 +62,7 @@ if (typeof window !== 'undefined') {
   // Listen for system theme changes
   window
     .matchMedia('(prefers-color-scheme: dark)')
-    .addEventListener('change', (e) => {
+    .addEventListener('change', () => {
       const store = useThemeStore.getState();
       if (store.theme === 'system') {
         applyTheme('system');

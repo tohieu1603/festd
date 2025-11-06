@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
+export function middleware(_request: NextRequest) {
   // For now, just allow all routes - authentication will be handled client-side
   // This is because we're using localStorage for tokens, not cookies
   return NextResponse.next();

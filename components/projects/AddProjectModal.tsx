@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
 import {
-  Calendar, DollarSign, Users, MapPin, Clock, Package,
+  Calendar, Users, MapPin, Clock, Package,
   UserPlus, Camera, Palette, Image, Plus, Trash2
 } from 'lucide-react';
 
@@ -30,7 +30,7 @@ export function AddProjectModal({ isOpen, onClose, onSuccess, project }: AddProj
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
-  const [partners, setPartners] = useState<any[]>([]);
+  const [_partners, setPartners] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     customer_name: '',

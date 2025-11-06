@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { ChartCard } from '@/components/dashboard/ChartCard';
 import { AddTransactionModal } from '@/components/finance/AddTransactionModal';
 import type { Transaction, ChartDataPoint } from '@/lib/types';
-import { api, buildQueryString } from '@/lib/api';
+// import { api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 export default function FinancePage() {
@@ -61,12 +61,12 @@ export default function FinancePage() {
 
   // Mock chart data
   const revenueByMonthData: ChartDataPoint[] = [
-    { name: 'T1', income: 45000000, expense: 32000000 },
-    { name: 'T2', income: 52000000, expense: 35000000 },
-    { name: 'T3', income: 48000000, expense: 33000000 },
-    { name: 'T4', income: 58000000, expense: 38000000 },
-    { name: 'T5', income: 55000000, expense: 36000000 },
-    { name: 'T6', income: 62000000, expense: 40000000 },
+    { name: 'T1', value: 45000000, income: 45000000, expense: 32000000 },
+    { name: 'T2', value: 52000000, income: 52000000, expense: 35000000 },
+    { name: 'T3', value: 48000000, income: 48000000, expense: 33000000 },
+    { name: 'T4', value: 58000000, income: 58000000, expense: 38000000 },
+    { name: 'T5', value: 55000000, income: 55000000, expense: 36000000 },
+    { name: 'T6', value: 62000000, income: 62000000, expense: 40000000 },
   ];
 
   const expensesByCategoryData: ChartDataPoint[] = [
@@ -296,7 +296,7 @@ export default function FinancePage() {
               {selectedTransaction.project && (
                 <div>
                   <p className="text-sm text-muted-foreground">Dự án liên quan</p>
-                  <p className="font-medium mt-1">{selectedTransaction.project.name}</p>
+                  <p className="font-medium mt-1">{selectedTransaction.project.project_code} - {selectedTransaction.project.customer_name}</p>
                 </div>
               )}
             </div>

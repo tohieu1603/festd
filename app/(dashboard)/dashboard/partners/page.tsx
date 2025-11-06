@@ -104,32 +104,26 @@ export default function PartnersPage() {
               <TableHead>Loại</TableHead>
               <TableHead>Người liên hệ</TableHead>
               <TableHead>Điện thoại</TableHead>
-              <TableHead>Chi phí</TableHead>
-              <TableHead>Đánh giá</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Địa chỉ</TableHead>
               <TableHead>Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {partners.map((partner) => (
               <TableRow key={partner.id}>
-                <TableCell className="font-mono text-sm">{partner.partner_id}</TableCell>
+                <TableCell className="font-mono text-sm">{partner.id}</TableCell>
                 <TableCell className="font-medium">{partner.name}</TableCell>
                 <TableCell>
-                  <Badge variant={partnerTypeColors[partner.type]}>
-                    {partnerTypeLabels[partner.type]}
+                  <Badge variant={partnerTypeColors[partner.partnership_type]}>
+                    {partnerTypeLabels[partner.partnership_type]}
                   </Badge>
                 </TableCell>
-                <TableCell>{partner.contact_info?.contact_person || '-'}</TableCell>
-                <TableCell>{partner.contact_info?.phone || '-'}</TableCell>
+                <TableCell>{partner.contact_person || '-'}</TableCell>
+                <TableCell>{partner.phone_number || '-'}</TableCell>
+                <TableCell>{partner.email || '-'}</TableCell>
                 <TableCell>
-                  {partner.cost === 'Theo bill' ? (
-                    <span className="text-muted-foreground italic">Theo bill</span>
-                  ) : (
-                    <span>{parseFloat(partner.cost).toLocaleString('vi-VN')} VNĐ</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <span className="text-yellow-500">★ {partner.rating || 0}</span>
+                  <span className="text-sm text-muted-foreground">{partner.address || '-'}</span>
                 </TableCell>
                 <TableCell>
                   <Button
@@ -174,87 +168,47 @@ export default function PartnersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Mã đối tác</p>
-                  <p className="font-mono font-medium mt-1">{selectedPartner.partner_id}</p>
+                  <p className="font-mono font-medium mt-1">{selectedPartner.id}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Loại đối tác</p>
-                  <Badge variant={partnerTypeColors[selectedPartner.type]} className="mt-1">
-                    {partnerTypeLabels[selectedPartner.type]}
+                  <Badge variant={partnerTypeColors[selectedPartner.partnership_type]} className="mt-1">
+                    {partnerTypeLabels[selectedPartner.partnership_type]}
                   </Badge>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Chi phí</p>
-                  <p className="font-medium mt-1">
-                    {selectedPartner.cost === 'Theo bill' ? (
-                      <span className="text-muted-foreground italic">Theo bill thực tế</span>
-                    ) : (
-                      <span>{parseFloat(selectedPartner.cost).toLocaleString('vi-VN')} VNĐ</span>
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Đánh giá</p>
-                  <p className="font-medium mt-1">
-                    <span className="text-yellow-500">★ {selectedPartner.rating || 0}</span> / 5
-                  </p>
-                </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Người liên hệ</p>
+                <p className="font-medium mt-1">{selectedPartner.contact_person}</p>
               </div>
 
-              {selectedPartner.contact_info && (
-                <>
-                  {selectedPartner.contact_info.contact_person && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Người liên hệ</p>
-                      <p className="font-medium mt-1">{selectedPartner.contact_info.contact_person}</p>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {selectedPartner.contact_info.phone && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Điện thoại</p>
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
-                          <span>{selectedPartner.contact_info.phone}</span>
-                        </div>
-                      </div>
-                    )}
-                    {selectedPartner.contact_info.email && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Email</p>
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          <span>{selectedPartner.contact_info.email}</span>
-                        </div>
-                      </div>
-                    )}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Điện thoại</p>
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedPartner.phone_number || '-'}</span>
                   </div>
-
-                  {selectedPartner.contact_info.address && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">Địa chỉ</p>
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground mt-1" />
-                        <span>{selectedPartner.contact_info.address}</span>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Số dự án đã làm</p>
-                  <p className="font-medium mt-1">{selectedPartner.projects_count || 0} dự án</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Tổng doanh thu</p>
-                  <p className="font-medium mt-1">{(selectedPartner.total_revenue || 0).toLocaleString('vi-VN')} VNĐ</p>
+                  <p className="text-sm text-muted-foreground mb-2">Email</p>
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedPartner.email}</span>
+                  </div>
                 </div>
               </div>
+
+              {selectedPartner.address && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Địa chỉ</p>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-1" />
+                    <span>{selectedPartner.address}</span>
+                  </div>
+                </div>
+              )}
 
               {selectedPartner.notes && (
                 <div>

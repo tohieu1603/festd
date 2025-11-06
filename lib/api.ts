@@ -54,7 +54,7 @@ class ApiClient {
     // Add authentication token
     const accessToken = token || getAccessToken();
     if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`;
     }
 
     const config: RequestInit = {
@@ -74,7 +74,7 @@ class ApiClient {
           if (newTokens) {
             setTokens(newTokens);
             // Retry the original request with new token
-            headers['Authorization'] = `Bearer ${newTokens.access}`;
+            (headers as Record<string, string>)['Authorization'] = `Bearer ${newTokens.access}`;
             const retryResponse = await fetch(`${this.baseURL}${endpoint}`, config);
             if (!retryResponse.ok) {
               throw await this.handleError(retryResponse);

@@ -54,7 +54,12 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const response = await api.post('/auth/register', {
+      const response = await api.post<{
+        success: boolean;
+        token: string;
+        message: string;
+        user: any;
+      }>('/auth/register', {
         username: formData.username,
         email: formData.email,
         password: formData.password,

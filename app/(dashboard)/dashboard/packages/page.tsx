@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Package as PackageIcon, Search, Filter, X, SlidersHorizontal, Camera, Users, Clock, MapPin } from 'lucide-react';
+import { Plus, Package as PackageIcon, Search, X, SlidersHorizontal, Camera, Clock, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';

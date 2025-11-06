@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, Moon, Sun, Bell, LogOut, ChevronDown } from 'lucide-react';
+import { Menu, Moon, Sun, Bell, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useThemeStore } from '@/stores/theme.store';
 import { Button } from '@/components/ui/Button';

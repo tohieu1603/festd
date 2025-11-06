@@ -9,7 +9,7 @@ import '@/styles/calendar.css';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Calendar as CalendarIcon, Clock, MapPin, Users, DollarSign, Phone, Mail } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, MapPin, Users, Phone, Mail } from 'lucide-react';
 import type { Project } from '@/lib/types';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDateShort } from '@/lib/utils';

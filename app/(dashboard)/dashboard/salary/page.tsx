@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Download, Calendar } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
@@ -186,7 +186,7 @@ export default function SalaryPage() {
             {salaries.map((salary) => (
               <TableRow key={salary.id}>
                 <TableCell className="font-medium">
-                  {salary.employee.full_name}
+                  {salary.employee.name}
                 </TableCell>
                 <TableCell>{salary.month}</TableCell>
                 <TableCell>{formatCurrency(salary.base_salary)}</TableCell>
@@ -242,7 +242,7 @@ export default function SalaryPage() {
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-muted-foreground">Nhân viên</p>
-                <p className="font-medium mt-1">{selectedSalary.employee.full_name}</p>
+                <p className="font-medium mt-1">{selectedSalary.employee.name}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
