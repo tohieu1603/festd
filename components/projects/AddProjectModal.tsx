@@ -41,6 +41,7 @@ export function AddProjectModal({ isOpen, onClose, onSuccess, project }: AddProj
     package_price: 0,
     discount: 0,
     payment_status: 'unpaid',
+    status: 'confirmed' as 'confirmed' | 'completed' | 'cancelled',
     shoot_date: new Date().toISOString().slice(0, 10),
     shoot_time: '',
     shoot_location: '',
@@ -62,6 +63,8 @@ export function AddProjectModal({ isOpen, onClose, onSuccess, project }: AddProj
     if (isOpen) {
       loadData();
       if (project) {
+        // Ensure team structure is always defined
+        const teamData = project.team || {};
         setFormData({
           customer_name: project.customer_name || '',
           customer_phone: project.customer_phone || '',
@@ -70,18 +73,43 @@ export function AddProjectModal({ isOpen, onClose, onSuccess, project }: AddProj
           package_name: project.package_name || '',
           package_price: project.package_price || 0,
           discount: project.discount || 0,
-          payment_status: project.payment_status || 'unpaid',
+          payment_status: project.payment?.status || 'unpaid',
+          status: project.status || 'confirmed',
           shoot_date: project.shoot_date || new Date().toISOString().slice(0, 10),
           shoot_time: project.shoot_time || '',
-          shoot_location: project.shoot_location || '',
+          shoot_location: project.location || '',
           notes: project.notes || '',
-          team: project.team || {
+          team: {
+            main_photographer: teamData.main_photographer || { employee_id: '', salary: 0, bonus: 0 },
+            assistants: teamData.assistants || [],
+            makeup_artists: teamData.makeup_artists || [],
+            retouch_artists: teamData.retouch_artists || [],
+          },
+          partners: project.partners || [],
+        });
+      } else {
+        // Reset form when adding new project
+        setFormData({
+          customer_name: '',
+          customer_phone: '',
+          customer_email: '',
+          package_id: '',
+          package_name: '',
+          package_price: 0,
+          discount: 0,
+          payment_status: 'unpaid',
+          status: 'confirmed',
+          shoot_date: new Date().toISOString().slice(0, 10),
+          shoot_time: '',
+          shoot_location: '',
+          notes: '',
+          team: {
             main_photographer: { employee_id: '', salary: 0, bonus: 0 },
             assistants: [],
             makeup_artists: [],
             retouch_artists: [],
           },
-          partners: project.partners || [],
+          partners: [],
         });
       }
     }
@@ -152,7 +180,7 @@ export function AddProjectModal({ isOpen, onClose, onSuccess, project }: AddProj
         shoot_time: formData.shoot_time || null,
         location: formData.shoot_location || null,
         notes: formData.notes || null,
-        status: 'pending',
+        status: 'pending', // New projects always start as pending, status changed from table
         // Transform team data
         team: {
           main_photographer: formData.team.main_photographer.employee_id ? {

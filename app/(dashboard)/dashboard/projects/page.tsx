@@ -23,6 +23,13 @@ const statusLabels: Record<ProjectStatus, string> = {
   cancelled: 'Đã hủy',
 };
 
+const paymentStatusLabels: Record<string, string> = {
+  unpaid: 'Chưa thanh toán',
+  deposit_paid: 'Đã đặt cọc',
+  partially_paid: 'Thanh toán 1 phần',
+  fully_paid: 'Đã thanh toán',
+};
+
 const statusColors: Record<ProjectStatus, string> = {
   pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
   confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -50,6 +57,7 @@ export default function ProjectsPage() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [updatingPaymentId, setUpdatingPaymentId] = useState<string | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -86,15 +94,39 @@ export default function ProjectsPage() {
     setIsModalOpen(true);
   };
 
-  const handleStatusChange = async (projectId: string, newStatus: ProjectStatus) => {
-    setUpdatingStatusId(projectId);
+  const handlePaymentStatusChange = async (projectId: string, newPaymentStatus: string) => {
+    setUpdatingPaymentId(projectId);
     try {
-      await api.patch(`/projects/${projectId}`, { status: newStatus });
-      toast.success('Đã cập nhật trạng thái dự án!');
+      await api.patch(`/projects/${projectId}`, {
+        payment: { status: newPaymentStatus }
+      });
+      toast.success('Đã cập nhật trạng thái thanh toán!');
       fetchProjects();
     } catch (error) {
+      console.error('Failed to update payment status:', error);
+      toast.error('Không thể cập nhật trạng thái thanh toán. Vui lòng thử lại.');
+    } finally {
+      setUpdatingPaymentId(null);
+    }
+  };
+
+  const handleStatusChange = async (project: Project, newStatus: string) => {
+    // Validate: cannot change from completed to cancelled
+    if (project.status === 'completed' && newStatus === 'cancelled') {
+      toast.error('Không thể hủy dự án đã hoàn thành!');
+      return;
+    }
+
+    setUpdatingStatusId(project.id);
+    try {
+      await api.patch(`/projects/${project.id}`, {
+        status: newStatus
+      });
+      toast.success('Đã cập nhật trạng thái dự án!');
+      fetchProjects();
+    } catch (error: any) {
       console.error('Failed to update project status:', error);
-      toast.error('Không thể cập nhật trạng thái. Vui lòng thử lại.');
+      toast.error(error.message || 'Không thể cập nhật trạng thái dự án. Vui lòng thử lại.');
     } finally {
       setUpdatingStatusId(null);
     }
@@ -302,26 +334,37 @@ export default function ProjectsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge className={paymentStatusColors[project.payment?.status || 'unpaid']}>
-                        {project.payment?.status === 'unpaid' && 'Chưa thanh toán'}
-                        {project.payment?.status === 'deposit_paid' && 'Đã đặt cọc'}
-                        {project.payment?.status === 'partially_paid' && 'Thanh toán 1 phần'}
-                        {project.payment?.status === 'fully_paid' && 'Đã thanh toán'}
-                      </Badge>
+                      {canConfirm ? (
+                        <select
+                          value={project.payment?.status || 'unpaid'}
+                          onChange={(e) => handlePaymentStatusChange(project.id, e.target.value)}
+                          disabled={updatingPaymentId === project.id}
+                          className="text-sm rounded-md border border-input bg-background px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                        >
+                          {Object.entries(paymentStatusLabels).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <Badge className={paymentStatusColors[project.payment?.status || 'unpaid']}>
+                          {paymentStatusLabels[project.payment?.status || 'unpaid']}
+                        </Badge>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {canConfirm ? (
                         <select
                           value={project.status}
-                          onChange={(e) => handleStatusChange(project.id, e.target.value as ProjectStatus)}
+                          onChange={(e) => handleStatusChange(project, e.target.value)}
                           disabled={updatingStatusId === project.id}
                           className="text-sm rounded-md border border-input bg-background px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                         >
-                          {Object.entries(statusLabels).map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
+                          <option value="pending">Chờ xác nhận</option>
+                          <option value="confirmed">Đã xác nhận</option>
+                          <option value="completed">Hoàn thành</option>
+                          <option value="cancelled">Đã hủy</option>
                         </select>
                       ) : (
                         <Badge className={statusColors[project.status]}>
