@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Search, Trash2, Check, Calendar, DollarSign, Package, Eye } from 'lucide-react';
+import { Plus, Search, Trash2, Calendar, DollarSign, Package, Eye, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { Select } from '@/components/ui/Select';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { AddProjectModal } from '@/components/projects/AddProjectModal';
 import type { Project, ProjectStatus } from '@/lib/types';
@@ -47,9 +48,10 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -67,22 +69,6 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleConfirmProject = async (project: Project) => {
-    if (project.status !== 'pending') return;
-
-    setConfirmingId(project.id);
-    try {
-      await api.patch(`/projects/${project.id}`, { status: 'confirmed' });
-      toast.success('Đã xác nhận dự án thành công!');
-      fetchProjects();
-    } catch (error) {
-      console.error('Failed to confirm project:', error);
-      toast.error('Không thể xác nhận dự án. Vui lòng thử lại.');
-    } finally {
-      setConfirmingId(null);
-    }
-  };
-
   const handleDeleteProject = async (project: Project) => {
     if (!confirm(`Bạn có chắc muốn xóa dự án "${project.customer_name}"?`)) return;
 
@@ -94,6 +80,40 @@ export default function ProjectsPage() {
       console.error('Failed to delete project:', error);
       toast.error('Không thể xóa dự án. Vui lòng thử lại.');
     }
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setIsModalOpen(true);
+  };
+
+  const handleStatusChange = async (projectId: string, newStatus: ProjectStatus) => {
+    setUpdatingStatusId(projectId);
+    try {
+      await api.patch(`/projects/${projectId}`, { status: newStatus });
+      toast.success('Đã cập nhật trạng thái dự án!');
+      fetchProjects();
+    } catch (error) {
+      console.error('Failed to update project status:', error);
+      toast.error('Không thể cập nhật trạng thái. Vui lòng thử lại.');
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
+  const handleAddProject = () => {
+    setEditingProject(null);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setEditingProject(null);
+  };
+
+  const handleModalSuccess = () => {
+    fetchProjects();
+    handleModalClose();
   };
 
   // Filtered projects
@@ -140,7 +160,7 @@ export default function ProjectsPage() {
           </p>
         </div>
         {canCreate && (
-          <Button onClick={() => setIsModalOpen(true)}>
+          <Button onClick={handleAddProject}>
             <Plus className="h-4 w-4 mr-2" />
             Tạo dự án
           </Button>
@@ -291,9 +311,24 @@ export default function ProjectsPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge className={statusColors[project.status]}>
-                        {statusLabels[project.status]}
-                      </Badge>
+                      {canConfirm ? (
+                        <select
+                          value={project.status}
+                          onChange={(e) => handleStatusChange(project.id, e.target.value as ProjectStatus)}
+                          disabled={updatingStatusId === project.id}
+                          className="text-sm rounded-md border border-input bg-background px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                        >
+                          {Object.entries(statusLabels).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <Badge className={statusColors[project.status]}>
+                          {statusLabels[project.status]}
+                        </Badge>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex justify-end gap-2">
@@ -309,16 +344,15 @@ export default function ProjectsPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {canConfirm && project.status === 'pending' && (
+                        {canConfirm && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleConfirmProject(project)}
-                            disabled={confirmingId === project.id}
-                            className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
-                            title="Xác nhận dự án"
+                            onClick={() => handleEditProject(project)}
+                            className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900/20"
+                            title="Chỉnh sửa"
                           >
-                            <Check className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
                         )}
                         {canDelete && (
@@ -342,14 +376,12 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {/* Add Project Modal */}
+      {/* Add/Edit Project Modal */}
       <AddProjectModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => {
-          setIsModalOpen(false);
-          fetchProjects();
-        }}
+        onClose={handleModalClose}
+        onSuccess={handleModalSuccess}
+        project={editingProject}
       />
 
       {/* Project Detail Modal */}
