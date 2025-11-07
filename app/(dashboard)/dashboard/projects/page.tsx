@@ -77,7 +77,7 @@ export default function ProjectsPage() {
 
     setConfirmLoading(true);
     try {
-      await api.patch(`/projects/${selectedProject.id}/`, {
+      await api.patch(`/projects/${selectedProject.id}`, {
         status: 'confirmed'
       });
 
@@ -99,7 +99,7 @@ export default function ProjectsPage() {
   };
 
   // Check if user has permission to confirm projects
-  const canConfirmProject = user && ['admin', 'Manager'].includes(user.role);
+  const canConfirmProject = user && ['admin', 'manager'].includes(user.role);
 
   // Filtered projects
   const filteredProjects = useMemo(() => {

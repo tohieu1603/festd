@@ -1,15 +1,14 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { Plus, Search, X, SlidersHorizontal, Users2, DollarSign } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { EmployeeCard } from '@/components/features/EmployeeCard';
-import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { AddEmployeeModal } from '@/components/employees/AddEmployeeModal';
 import type { Employee } from '@/lib/types';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 const roleLabels: Record<string, string> = {
   'Photo/Retouch': 'Photo/Retouch',
@@ -20,23 +19,20 @@ const roleLabels: Record<string, string> = {
 };
 
 const roleColors: Record<string, string> = {
-  'Photo/Retouch': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800',
-  'Makeup Artist': 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 border-pink-200 dark:border-pink-800',
-  'Content': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-  'Sales': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800',
-  'Manager': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+  'Photo/Retouch': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  'Makeup Artist': 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
+  'Content': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  'Sales': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  'Manager': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
 };
 
 export default function EmployeesPage() {
+  const { user } = useAuthStore();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string | 'all'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [salaryRange, setSalaryRange] = useState<{ min: string; max: string }>({ min: '', max: '' });
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
   useEffect(() => {
     fetchEmployees();
@@ -44,6 +40,7 @@ export default function EmployeesPage() {
 
   const fetchEmployees = async () => {
     try {
+      setLoading(true);
       const response = await api.get<{ total: number; items: Employee[] }>('/employees/');
       setEmployees(response.items || []);
     } catch (error) {
@@ -53,437 +50,234 @@ export default function EmployeesPage() {
     }
   };
 
-  const handleEmployeeClick = (employee: Employee) => {
-    setSelectedEmployee(employee);
+  const handleAddEmployee = () => {
+    setEditingEmployee(null);
     setIsModalOpen(true);
   };
 
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setRoleFilter('all');
-    setSalaryRange({ min: '', max: '' });
-    setStatusFilter('all');
+  const handleEditEmployee = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteEmployee = async (employee: Employee) => {
+    if (!confirm(`Bạn có chắc muốn xóa nhân viên ${employee.name}?`)) return;
+
+    try {
+      await api.delete(`/employees/${employee.id}`);
+      alert('Đã xóa nhân viên thành công!');
+      fetchEmployees();
+    } catch (error) {
+      console.error('Failed to delete employee:', error);
+      alert('Không thể xóa nhân viên. Vui lòng thử lại.');
+    }
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setEditingEmployee(null);
+  };
+
+  const handleModalSuccess = () => {
+    fetchEmployees();
+    handleModalClose();
   };
 
   // Filtered employees
-  const filteredEmployees = useMemo(() => {
-    return employees.filter((employee) => {
-      // Search filter
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        if (
-          !employee.name.toLowerCase().includes(searchLower) &&
-          !employee.email.toLowerCase().includes(searchLower) &&
-          !employee.phone.toLowerCase().includes(searchLower)
-        ) {
-          return false;
-        }
-      }
+  const filteredEmployees = employees.filter((employee) => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      employee.name.toLowerCase().includes(searchLower) ||
+      employee.email.toLowerCase().includes(searchLower) ||
+      employee.phone.toLowerCase().includes(searchLower) ||
+      employee.role.toLowerCase().includes(searchLower)
+    );
+  });
 
-      // Role filter
-      if (roleFilter !== 'all' && employee.role !== roleFilter) {
-        return false;
-      }
+  // Check permissions
+  const canCreate = user && ['admin', 'manager'].includes(user.role);
+  const canEdit = user && ['admin', 'manager'].includes(user.role);
+  const canDelete = user && user.role === 'admin';
 
-      // Salary range filter
-      if (salaryRange.min && employee.base_salary < Number(salaryRange.min)) {
-        return false;
-      }
-      if (salaryRange.max && employee.base_salary > Number(salaryRange.max)) {
-        return false;
-      }
-
-      // Status filter
-      if (statusFilter === 'active' && !employee.is_active) {
-        return false;
-      }
-      if (statusFilter === 'inactive' && employee.is_active) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [employees, searchTerm, roleFilter, salaryRange, statusFilter]);
-
-  const activeFiltersCount = [
-    searchTerm,
-    roleFilter !== 'all',
-    salaryRange.min || salaryRange.max,
-    statusFilter !== 'all',
-  ].filter(Boolean).length;
-
-  const roleStats = useMemo(() => {
-    const stats: Record<string, number> = { all: employees.length };
-    employees.forEach((employee) => {
-      stats[employee.role] = (stats[employee.role] || 0) + 1;
-    });
-    return stats;
-  }, [employees]);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Đang tải...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Users2 className="h-8 w-8 text-primary" />
-            Nhân Viên
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Quản lý thông tin và lương nhân viên
+          <h1 className="text-3xl font-bold text-foreground">Nhân viên</h1>
+          <p className="text-muted-foreground mt-1">
+            Quản lý thông tin nhân viên và phân công công việc
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} size="lg">
-          <Plus className="h-5 w-5 mr-2" />
-          Thêm nhân viên
-        </Button>
-      </div>
-
-      {/* Search and Filter Bar */}
-      <div className="bg-card rounded-xl border p-4 space-y-4">
-        <div className="flex gap-3">
-          {/* Search Input */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Tìm theo tên, email, số điện thoại..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-11 text-base"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Filter Toggle */}
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            className="h-11 px-4"
-          >
-            <SlidersHorizontal className="h-5 w-5 mr-2" />
-            Lọc
-            {activeFiltersCount > 0 && (
-              <Badge variant="default" className="ml-2 px-1.5 py-0 h-5 min-w-5">
-                {activeFiltersCount}
-              </Badge>
-            )}
+        {canCreate && (
+          <Button onClick={handleAddEmployee}>
+            <Plus className="h-4 w-4 mr-2" />
+            Thêm nhân viên
           </Button>
-
-          {activeFiltersCount > 0 && (
-            <Button
-              variant="ghost"
-              onClick={handleClearFilters}
-              className="h-11 px-4"
-            >
-              <X className="h-4 w-4 mr-2" />
-              Xóa lọc
-            </Button>
-          )}
-        </div>
-
-        {/* Advanced Filters */}
-        {showFilters && (
-          <div className="pt-4 border-t space-y-4">
-            {/* Salary Range */}
-            <div>
-              <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Khoảng lương
-              </label>
-              <div className="flex gap-3 items-center">
-                <Input
-                  type="number"
-                  placeholder="Từ"
-                  value={salaryRange.min}
-                  onChange={(e) => setSalaryRange({ ...salaryRange, min: e.target.value })}
-                  className="h-10"
-                />
-                <span className="text-muted-foreground">-</span>
-                <Input
-                  type="number"
-                  placeholder="Đến"
-                  value={salaryRange.max}
-                  onChange={(e) => setSalaryRange({ ...salaryRange, max: e.target.value })}
-                  className="h-10"
-                />
-                <span className="text-sm text-muted-foreground whitespace-nowrap">VNĐ</span>
-              </div>
-            </div>
-
-            {/* Status Filter */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Trạng thái</label>
-              <div className="flex gap-2">
-                <Button
-                  variant={statusFilter === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setStatusFilter('all')}
-                >
-                  Tất cả
-                </Button>
-                <Button
-                  variant={statusFilter === 'active' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setStatusFilter('active')}
-                >
-                  Đang làm việc
-                </Button>
-                <Button
-                  variant={statusFilter === 'inactive' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setStatusFilter('inactive')}
-                >
-                  Đã nghỉ
-                </Button>
-              </div>
-            </div>
-          </div>
         )}
       </div>
 
-      {/* Role Filter Pills */}
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
-        <button
-          onClick={() => setRoleFilter('all')}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-            roleFilter === 'all'
-              ? 'bg-primary text-primary-foreground shadow-md'
-              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-          }`}
-        >
-          Tất cả ({roleStats.all || 0})
-        </button>
-        {Object.keys(roleLabels).map((role) => (
-          <button
-            key={role}
-            onClick={() => setRoleFilter(role)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap border ${
-              roleFilter === role
-                ? roleColors[role] || 'bg-secondary'
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80 border-transparent'
-            }`}
-          >
-            {roleLabels[role]} ({roleStats[role] || 0})
-          </button>
-        ))}
+      {/* Search */}
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Tìm kiếm theo tên, email, số điện thoại, chức vụ..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
-      {/* Employee Grid */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Đang tải danh sách nhân viên...</p>
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="text-sm text-muted-foreground">Tổng nhân viên</div>
+          <div className="text-2xl font-bold text-foreground mt-1">{employees.length}</div>
+        </div>
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="text-sm text-muted-foreground">Đang hoạt động</div>
+          <div className="text-2xl font-bold text-green-600 mt-1">
+            {employees.filter((e) => e.is_active).length}
           </div>
         </div>
-      ) : filteredEmployees.length === 0 ? (
-        <div className="text-center py-12 bg-card rounded-xl border">
-          <Users2 className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-          <p className="text-lg font-medium">Không tìm thấy nhân viên</p>
-          <p className="text-muted-foreground mt-2">
-            {activeFiltersCount > 0
-              ? 'Thử điều chỉnh bộ lọc hoặc tìm kiếm với từ khóa khác'
-              : 'Chưa có nhân viên nào'}
-          </p>
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="text-sm text-muted-foreground">Nghỉ việc</div>
+          <div className="text-2xl font-bold text-red-600 mt-1">
+            {employees.filter((e) => !e.is_active).length}
+          </div>
         </div>
-      ) : (
-        <>
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <p>
-              Hiển thị <span className="font-semibold text-foreground">{filteredEmployees.length}</span> nhân viên
-              {filteredEmployees.length !== employees.length && (
-                <> trong tổng số <span className="font-semibold text-foreground">{employees.length}</span> nhân viên</>
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="text-sm text-muted-foreground">Kết quả tìm kiếm</div>
+          <div className="text-2xl font-bold text-blue-600 mt-1">{filteredEmployees.length}</div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-muted/50 border-b border-border">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Tên
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Chức vụ
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Email
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Điện thoại
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Lương cơ bản
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Trạng thái
+                </th>
+                {(canEdit || canDelete) && (
+                  <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Thao tác
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filteredEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
+                    {searchTerm
+                      ? 'Không tìm thấy nhân viên nào phù hợp'
+                      : 'Chưa có nhân viên nào. Nhấn "Thêm nhân viên" để bắt đầu.'}
+                  </td>
+                </tr>
+              ) : (
+                filteredEmployees.map((employee) => (
+                  <tr
+                    key={employee.id}
+                    className="hover:bg-muted/30 transition-colors"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-medium text-foreground">{employee.name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge className={roleColors[employee.role] || 'bg-gray-100 text-gray-700'}>
+                        {roleLabels[employee.role] || employee.role}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {employee.email}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {employee.phone}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
+                      {employee.base_salary?.toLocaleString('vi-VN')} đ
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge
+                        className={
+                          employee.is_active
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                        }
+                      >
+                        {employee.is_active ? 'Hoạt động' : 'Nghỉ việc'}
+                      </Badge>
+                    </td>
+                    {(canEdit || canDelete) && (
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditEmployee(employee)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteEmployee(employee)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
               )}
-            </p>
-          </div>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredEmployees.map((employee) => (
-              <EmployeeCard
-                key={employee.id}
-                employee={employee}
-                onClick={() => handleEmployeeClick(employee)}
-              />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Add/Edit Employee Modal */}
-      {isModalOpen && !selectedEmployee && (
-        <AddEmployeeModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSuccess={() => {
-            setIsModalOpen(false);
-            fetchEmployees();
-          }}
-        />
-      )}
-
-      {/* Employee Detail Modal */}
-      {selectedEmployee && (
-        <Modal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedEmployee(null);
-          }}
-          title={selectedEmployee.name}
-          size="xl"
-        >
-          <div className="space-y-6">
-            {/* Role Badge */}
-            <div className="flex items-center gap-2 pb-4 border-b">
-              <div className={`px-4 py-2 rounded-full text-sm font-semibold border ${roleColors[selectedEmployee.role] || 'bg-secondary'}`}>
-                {selectedEmployee.role}
-              </div>
-              <Badge variant={selectedEmployee.is_active ? 'success' : 'secondary'}>
-                {selectedEmployee.is_active ? 'Đang làm việc' : 'Đã nghỉ'}
-              </Badge>
-            </div>
-
-            {/* Basic Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Ngày bắt đầu</p>
-                <p className="font-medium mt-1">{selectedEmployee.start_date}</p>
-              </div>
-            </div>
-
-            {/* Contact Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium mt-1">{selectedEmployee.email}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Số điện thoại</p>
-                <p className="font-medium mt-1">{selectedEmployee.phone}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-sm text-muted-foreground">Địa chỉ</p>
-                <p className="font-medium mt-1">{selectedEmployee.address}</p>
-              </div>
-            </div>
-
-            {/* Skills */}
-            {selectedEmployee.skills && selectedEmployee.skills.length > 0 && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Kỹ năng</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedEmployee.skills.map((skill, idx) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Salary Info */}
-            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-              <p className="text-sm font-medium text-muted-foreground mb-3">Thông tin lương</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Lương cơ bản</p>
-                  <p className="text-lg font-bold text-primary mt-1">{selectedEmployee.base_salary?.toLocaleString('vi-VN')} ₫</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Đơn giá chụp chính</p>
-                  <p className="font-semibold mt-1">{selectedEmployee.default_rates?.main_photo?.toLocaleString('vi-VN')} ₫</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Đơn giá chụp phụ</p>
-                  <p className="font-semibold mt-1">{selectedEmployee.default_rates?.assist_photo?.toLocaleString('vi-VN')} ₫</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Đơn giá makeup</p>
-                  <p className="font-semibold mt-1">{selectedEmployee.default_rates?.makeup?.toLocaleString('vi-VN')} ₫</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Đơn giá retouch</p>
-                  <p className="font-semibold mt-1">{selectedEmployee.default_rates?.retouch?.toLocaleString('vi-VN')} ₫</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Bank Info */}
-            {selectedEmployee.bank_account && (selectedEmployee.bank_account.bank_name || selectedEmployee.bank_account.account_number) && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Thông tin ngân hàng</p>
-                <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-lg">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Ngân hàng</p>
-                    <p className="font-medium">{selectedEmployee.bank_account.bank_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Số tài khoản</p>
-                    <p className="font-medium">{selectedEmployee.bank_account.account_number}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-xs text-muted-foreground">Chủ tài khoản</p>
-                    <p className="font-medium">{selectedEmployee.bank_account.account_holder}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Emergency Contact */}
-            {selectedEmployee.emergency_contact && selectedEmployee.emergency_contact.name && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Liên hệ khẩn cấp</p>
-                <div className="grid grid-cols-3 gap-3 p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/30">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Họ tên</p>
-                    <p className="font-medium">{selectedEmployee.emergency_contact.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Số điện thoại</p>
-                    <p className="font-medium">{selectedEmployee.emergency_contact.phone}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Mối quan hệ</p>
-                    <p className="font-medium">{selectedEmployee.emergency_contact.relationship}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Notes */}
-            {selectedEmployee.notes && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Ghi chú</p>
-                <p className="mt-2 bg-muted/50 p-3 rounded-lg text-sm">{selectedEmployee.notes}</p>
-              </div>
-            )}
-
-            <ModalFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setSelectedEmployee(null);
-                }}
-              >
-                Đóng
-              </Button>
-              <Button>Chỉnh sửa</Button>
-            </ModalFooter>
-          </div>
-        </Modal>
-      )}
+      {/* Add/Edit Modal */}
+      <AddEmployeeModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onSuccess={handleModalSuccess}
+        employee={editingEmployee}
+      />
     </div>
   );
 }
