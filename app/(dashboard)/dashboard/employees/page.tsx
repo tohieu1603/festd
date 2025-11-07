@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, UserX, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
@@ -62,7 +62,7 @@ export default function EmployeesPage() {
   };
 
   const handleDeleteEmployee = async (employee: Employee) => {
-    if (!confirm(`Bạn có chắc muốn xóa nhân viên ${employee.name}?`)) return;
+    if (!confirm(`Bạn có chắc muốn XÓA VĨNH VIỄN nhân viên ${employee.name}? Hành động này không thể hoàn tác!`)) return;
 
     try {
       await api.delete(`/employees/${employee.id}`);
@@ -71,6 +71,32 @@ export default function EmployeesPage() {
     } catch (error) {
       console.error('Failed to delete employee:', error);
       toast.error('Không thể xóa nhân viên. Vui lòng thử lại.');
+    }
+  };
+
+  const handleDeactivateEmployee = async (employee: Employee) => {
+    if (!confirm(`Cho nhân viên ${employee.name} nghỉ việc?`)) return;
+
+    try {
+      await api.patch(`/employees/${employee.id}/deactivate`);
+      toast.success('Đã cho nhân viên nghỉ việc!');
+      fetchEmployees();
+    } catch (error) {
+      console.error('Failed to deactivate employee:', error);
+      toast.error('Không thể cập nhật trạng thái. Vui lòng thử lại.');
+    }
+  };
+
+  const handleActivateEmployee = async (employee: Employee) => {
+    if (!confirm(`Cho nhân viên ${employee.name} quay lại làm việc?`)) return;
+
+    try {
+      await api.patch(`/employees/${employee.id}/activate`);
+      toast.success('Đã kích hoạt lại nhân viên!');
+      fetchEmployees();
+    } catch (error) {
+      console.error('Failed to activate employee:', error);
+      toast.error('Không thể cập nhật trạng thái. Vui lòng thử lại.');
     }
   };
 
@@ -247,8 +273,31 @@ export default function EmployeesPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditEmployee(employee)}
+                              title="Chỉnh sửa"
                             >
                               <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEdit && employee.is_active && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeactivateEmployee(employee)}
+                              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                              title="Cho nghỉ việc"
+                            >
+                              <UserX className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEdit && !employee.is_active && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleActivateEmployee(employee)}
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
+                              title="Kích hoạt lại"
+                            >
+                              <UserCheck className="h-4 w-4" />
                             </Button>
                           )}
                           {canDelete && (
@@ -257,6 +306,7 @@ export default function EmployeesPage() {
                               size="sm"
                               onClick={() => handleDeleteEmployee(employee)}
                               className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              title="Xóa vĩnh viễn"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
