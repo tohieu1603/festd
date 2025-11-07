@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Search, Trash2, Check, Calendar, DollarSign, Package } from 'lucide-react';
+import { Plus, Search, Trash2, Check, Calendar, DollarSign, Package, Eye, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { AddProjectModal } from '@/components/projects/AddProjectModal';
 import type { Project, ProjectStatus } from '@/lib/types';
 import { api } from '@/lib/api';
@@ -47,6 +48,8 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -294,6 +297,18 @@ export default function ProjectsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProject(project);
+                            setIsDetailOpen(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                          title="Xem chi tiết"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         {canConfirm && project.status === 'pending' && (
                           <Button
                             variant="ghost"
@@ -336,6 +351,151 @@ export default function ProjectsPage() {
           fetchProjects();
         }}
       />
+
+      {/* Project Detail Modal */}
+      {selectedProject && (
+        <Modal
+          isOpen={isDetailOpen}
+          onClose={() => {
+            setIsDetailOpen(false);
+            setSelectedProject(null);
+          }}
+          title="Chi tiết dự án"
+          size="xl"
+        >
+          <div className="space-y-6">
+            {/* Customer Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Mã dự án</label>
+                <p className="mt-1 text-foreground font-mono">{selectedProject.project_code}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Trạng thái</label>
+                <div className="mt-1">
+                  <Badge className={statusColors[selectedProject.status]}>
+                    {statusLabels[selectedProject.status]}
+                  </Badge>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Tên khách hàng</label>
+                <p className="mt-1 text-foreground">{selectedProject.customer_name}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Số điện thoại</label>
+                <p className="mt-1 text-foreground">{selectedProject.customer_phone}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Email</label>
+                <p className="mt-1 text-foreground">{selectedProject.customer_email || 'Không có'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Gói chụp</label>
+                <p className="mt-1 text-foreground">{selectedProject.package_name}</p>
+              </div>
+            </div>
+
+            {/* Shoot Info */}
+            <div className="border-t border-border pt-4">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Thông tin chụp</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Ngày chụp</label>
+                  <p className="mt-1 text-foreground">{formatDateShort(selectedProject.shoot_date)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Giờ chụp</label>
+                  <p className="mt-1 text-foreground">{selectedProject.shoot_time || 'Chưa xác định'}</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-sm font-medium text-muted-foreground">Địa điểm</label>
+                  <p className="mt-1 text-foreground">{selectedProject.location || 'Chưa xác định'}</p>
+                </div>
+                {selectedProject.notes && (
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-muted-foreground">Ghi chú</label>
+                    <p className="mt-1 text-foreground">{selectedProject.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Payment Info */}
+            <div className="border-t border-border pt-4">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Thông tin thanh toán</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Tổng giá trị</label>
+                  <p className="mt-1 text-foreground font-semibold">{formatCurrency(selectedProject.payment?.final || 0)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Đã thanh toán</label>
+                  <p className="mt-1 text-foreground font-semibold text-green-600">{formatCurrency(selectedProject.payment?.paid || 0)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Cọc</label>
+                  <p className="mt-1 text-foreground">{formatCurrency(selectedProject.payment?.deposit || 0)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Trạng thái</label>
+                  <div className="mt-1">
+                    <Badge className={paymentStatusColors[selectedProject.payment?.status || 'unpaid']}>
+                      {selectedProject.payment?.status === 'unpaid' && 'Chưa thanh toán'}
+                      {selectedProject.payment?.status === 'deposit_paid' && 'Đã đặt cọc'}
+                      {selectedProject.payment?.status === 'partially_paid' && 'Thanh toán 1 phần'}
+                      {selectedProject.payment?.status === 'fully_paid' && 'Đã thanh toán'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Progress Info */}
+            <div className="border-t border-border pt-4">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Tiến độ</h3>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedProject.progress?.shooting_done || false}
+                    disabled
+                    className="h-4 w-4"
+                  />
+                  <span className="text-foreground">Đã chụp xong</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedProject.progress?.retouch_done || false}
+                    disabled
+                    className="h-4 w-4"
+                  />
+                  <span className="text-foreground">Đã chỉnh sửa xong</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedProject.progress?.delivered || false}
+                    disabled
+                    className="h-4 w-4"
+                  />
+                  <span className="text-foreground">Đã giao hàng</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <ModalFooter>
+            <Button variant="outline" onClick={() => {
+              setIsDetailOpen(false);
+              setSelectedProject(null);
+            }}>
+              Đóng
+            </Button>
+          </ModalFooter>
+        </Modal>
+      )}
     </div>
   );
 }
