@@ -67,24 +67,9 @@ class ApiClient {
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, config);
 
-      // Handle 401 - Unauthorized (token expired)
+      // Handle 401 - Unauthorized (token expired or invalid)
       if (response.status === 401) {
-        const refreshToken = getRefreshToken();
-        if (refreshToken) {
-          // Try to refresh token
-          const newTokens = await this.refreshAccessToken(refreshToken);
-          if (newTokens) {
-            setTokens(newTokens);
-            // Retry the original request with new token
-            (headers as Record<string, string>)['Authorization'] = `Bearer ${newTokens.access}`;
-            const retryResponse = await fetch(`${this.baseURL}${endpoint}`, config);
-            if (!retryResponse.ok) {
-              throw await this.handleError(retryResponse);
-            }
-            return await retryResponse.json();
-          }
-        }
-        // If refresh fails, clear tokens and redirect to login
+        // Clear tokens and redirect to login
         clearTokens();
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
@@ -133,30 +118,6 @@ class ApiClient {
     }
 
     return { message, errors };
-  }
-
-  private async refreshAccessToken(
-    refreshToken: string
-  ): Promise<AuthTokens | null> {
-    try {
-      const response = await fetch(`${this.baseURL}/auth/token/refresh/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
-
-      if (!response.ok) return null;
-
-      const data = await response.json();
-      return {
-        access: data.access,
-        refresh: refreshToken,
-      };
-    } catch {
-      return null;
-    }
   }
 
   async get<T>(endpoint: string, options?: RequestOptions): Promise<T> {

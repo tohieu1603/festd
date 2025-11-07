@@ -1,50 +1,52 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { Plus, Search, Grid, List, X, SlidersHorizontal, Calendar, FolderKanban, Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Plus, Search, Trash2, Check, Calendar, DollarSign, Package } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { ProjectCard } from '@/components/features/ProjectCard';
-import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { AddProjectModal } from '@/components/projects/AddProjectModal';
 import type { Project, ProjectStatus } from '@/lib/types';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDateShort } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
+import { toast, confirm } from '@/lib/toast';
 
 const statusLabels: Record<ProjectStatus, string> = {
   pending: 'Chờ xác nhận',
   confirmed: 'Đã xác nhận',
   shooting: 'Đang chụp',
-  retouching: 'Đang retouch',
+  retouching: 'Đang chỉnh sửa',
   delivered: 'Đã giao',
   completed: 'Hoàn thành',
   cancelled: 'Đã hủy',
 };
 
 const statusColors: Record<ProjectStatus, string> = {
-  pending: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700',
-  confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-  shooting: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800',
-  retouching: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-  delivered: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
-  completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800',
-  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800',
+  pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+  confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  shooting: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  retouching: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  delivered: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+  completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+};
+
+const paymentStatusColors: Record<string, string> = {
+  unpaid: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  deposit_paid: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+  partially_paid: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  fully_paid: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
 };
 
 export default function ProjectsPage() {
+  const { user } = useAuthStore();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
-  const [confirmLoading, setConfirmLoading] = useState(false);
-  const { user } = useAuthStore();
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -52,6 +54,7 @@ export default function ProjectsPage() {
 
   const fetchProjects = async () => {
     try {
+      setLoading(true);
       const response = await api.get<{ total: number; items: Project[] }>('/projects/');
       setProjects(response.items || []);
     } catch (error) {
@@ -61,426 +64,278 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleProjectClick = (project: Project) => {
-    setSelectedProject(project);
-    setIsModalOpen(true);
-  };
+  const handleConfirmProject = async (project: Project) => {
+    if (project.status !== 'pending') return;
 
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('all');
-    setDateRange({ start: '', end: '' });
-  };
-
-  const handleConfirmProject = async () => {
-    if (!selectedProject || selectedProject.status !== 'pending') return;
-
-    setConfirmLoading(true);
+    setConfirmingId(project.id);
     try {
-      await api.patch(`/projects/${selectedProject.id}`, {
-        status: 'confirmed'
-      });
-
-      // Update local state
-      setProjects(projects.map(p =>
-        p.id === selectedProject.id
-          ? { ...p, status: 'confirmed' as ProjectStatus }
-          : p
-      ));
-      setSelectedProject({ ...selectedProject, status: 'confirmed' });
-
-      alert('Đã xác nhận dự án thành công!');
+      await api.patch(`/projects/${project.id}`, { status: 'confirmed' });
+      toast.success('Đã xác nhận dự án thành công!');
+      fetchProjects();
     } catch (error) {
       console.error('Failed to confirm project:', error);
-      alert('Không thể xác nhận dự án. Vui lòng thử lại.');
+      toast.error('Không thể xác nhận dự án. Vui lòng thử lại.');
     } finally {
-      setConfirmLoading(false);
+      setConfirmingId(null);
     }
   };
 
-  // Check if user has permission to confirm projects
-  const canConfirmProject = user && ['admin', 'manager'].includes(user.role);
+  const handleDeleteProject = async (project: Project) => {
+    if (!confirm(`Bạn có chắc muốn xóa dự án "${project.customer_name}"?`)) return;
+
+    try {
+      await api.delete(`/projects/${project.id}`);
+      toast.success('Đã xóa dự án thành công!');
+      fetchProjects();
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      toast.error('Không thể xóa dự án. Vui lòng thử lại.');
+    }
+  };
 
   // Filtered projects
-  const filteredProjects = useMemo(() => {
-    return projects.filter((project) => {
-      // Search filter
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        if (
-          !project.project_code.toLowerCase().includes(searchLower) &&
-          !project.customer_name.toLowerCase().includes(searchLower) &&
-          !project.package_name.toLowerCase().includes(searchLower)
-        ) {
-          return false;
-        }
-      }
-
-      // Status filter
-      if (statusFilter !== 'all' && project.status !== statusFilter) {
+  const filteredProjects = projects.filter((project) => {
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      if (
+        !project.customer_name.toLowerCase().includes(searchLower) &&
+        !project.customer_phone.toLowerCase().includes(searchLower) &&
+        !project.project_code.toLowerCase().includes(searchLower)
+      ) {
         return false;
       }
+    }
 
-      // Date range filter
-      if (dateRange.start && project.shoot_date < dateRange.start) {
-        return false;
-      }
-      if (dateRange.end && project.shoot_date > dateRange.end) {
-        return false;
-      }
+    if (statusFilter !== 'all' && project.status !== statusFilter) {
+      return false;
+    }
 
-      return true;
-    });
-  }, [projects, searchTerm, statusFilter, dateRange]);
+    return true;
+  });
 
-  const activeFiltersCount = [
-    searchTerm,
-    statusFilter !== 'all',
-    dateRange.start || dateRange.end,
-  ].filter(Boolean).length;
+  // Check permissions
+  const canCreate = user && ['admin', 'manager', 'sales'].includes(user.role);
+  const canConfirm = user && ['admin', 'manager'].includes(user.role);
+  const canDelete = user && user.role === 'admin';
 
-  const statusStats = useMemo(() => {
-    const stats: Record<string, number> = { all: projects.length };
-    projects.forEach((project) => {
-      stats[project.status] = (stats[project.status] || 0) + 1;
-    });
-    return stats;
-  }, [projects]);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Đang tải...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <FolderKanban className="h-8 w-8 text-primary" />
-            Dự Án
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Quản lý và theo dõi tiến độ dự án chụp ảnh
+          <h1 className="text-3xl font-bold text-foreground">Dự án</h1>
+          <p className="text-muted-foreground mt-1">
+            Quản lý dự án và theo dõi tiến độ
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} size="lg">
-          <Plus className="h-5 w-5 mr-2" />
-          Tạo dự án mới
-        </Button>
-      </div>
-
-      {/* Search and Filter Bar */}
-      <div className="bg-card rounded-xl border p-4 space-y-4">
-        <div className="flex gap-3">
-          {/* Search Input */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Tìm theo mã dự án, tên khách hàng, gói chụp..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-11 text-base"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Filter Toggle */}
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            className="h-11 px-4"
-          >
-            <SlidersHorizontal className="h-5 w-5 mr-2" />
-            Lọc
-            {activeFiltersCount > 0 && (
-              <Badge variant="default" className="ml-2 px-1.5 py-0 h-5 min-w-5">
-                {activeFiltersCount}
-              </Badge>
-            )}
+        {canCreate && (
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Tạo dự án
           </Button>
-
-          {/* View Mode Toggle */}
-          <div className="flex gap-1 bg-muted rounded-lg p-1">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="icon"
-              onClick={() => setViewMode('grid')}
-              className="h-9 w-9"
-            >
-              <Grid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="icon"
-              onClick={() => setViewMode('list')}
-              className="h-9 w-9"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {activeFiltersCount > 0 && (
-            <Button
-              variant="ghost"
-              onClick={handleClearFilters}
-              className="h-11 px-4"
-            >
-              <X className="h-4 w-4 mr-2" />
-              Xóa lọc
-            </Button>
-          )}
-        </div>
-
-        {/* Advanced Filters */}
-        {showFilters && (
-          <div className="pt-4 border-t space-y-4">
-            {/* Date Range */}
-            <div>
-              <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Khoảng thời gian chụp
-              </label>
-              <div className="flex gap-3 items-center">
-                <Input
-                  type="date"
-                  placeholder="Từ ngày"
-                  value={dateRange.start}
-                  onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                  className="h-10"
-                />
-                <span className="text-muted-foreground">-</span>
-                <Input
-                  type="date"
-                  placeholder="Đến ngày"
-                  value={dateRange.end}
-                  onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                  className="h-10"
-                />
-              </div>
-            </div>
-          </div>
         )}
       </div>
 
-      {/* Status Filter Pills */}
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
-        <button
-          onClick={() => setStatusFilter('all')}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-            statusFilter === 'all'
-              ? 'bg-primary text-primary-foreground shadow-md'
-              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-          }`}
-        >
-          Tất cả ({statusStats.all || 0})
-        </button>
-        {(Object.keys(statusLabels) as ProjectStatus[]).map((status) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap border ${
-              statusFilter === status
-                ? statusColors[status]
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80 border-transparent'
-            }`}
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Tìm kiếm theo tên KH, SĐT, mã dự án..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant={statusFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('all')}
           >
-            {statusLabels[status]} ({statusStats[status] || 0})
-          </button>
-        ))}
+            Tất cả
+          </Button>
+          <Button
+            variant={statusFilter === 'pending' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('pending')}
+          >
+            Chờ xác nhận
+          </Button>
+          <Button
+            variant={statusFilter === 'confirmed' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('confirmed')}
+          >
+            Đã xác nhận
+          </Button>
+        </div>
       </div>
 
-      {/* Projects Grid/List */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Đang tải dự án...</p>
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="text-sm text-muted-foreground">Tổng dự án</div>
+          <div className="text-2xl font-bold text-foreground mt-1">{projects.length}</div>
+        </div>
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="text-sm text-muted-foreground">Chờ xác nhận</div>
+          <div className="text-2xl font-bold text-yellow-600 mt-1">
+            {projects.filter((p) => p.status === 'pending').length}
           </div>
         </div>
-      ) : filteredProjects.length === 0 ? (
-        <div className="text-center py-12 bg-card rounded-xl border">
-          <FolderKanban className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-          <p className="text-lg font-medium">Không tìm thấy dự án</p>
-          <p className="text-muted-foreground mt-2">
-            {activeFiltersCount > 0
-              ? 'Thử điều chỉnh bộ lọc hoặc tìm kiếm với từ khóa khác'
-              : 'Chưa có dự án nào'}
-          </p>
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="text-sm text-muted-foreground">Đang thực hiện</div>
+          <div className="text-2xl font-bold text-purple-600 mt-1">
+            {projects.filter((p) => p.status === 'shooting' || p.status === 'retouching').length}
+          </div>
         </div>
-      ) : (
-        <>
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <p>
-              Hiển thị <span className="font-semibold text-foreground">{filteredProjects.length}</span> dự án
-              {filteredProjects.length !== projects.length && (
-                <> trong tổng số <span className="font-semibold text-foreground">{projects.length}</span> dự án</>
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="text-sm text-muted-foreground">Hoàn thành</div>
+          <div className="text-2xl font-bold text-green-600 mt-1">
+            {projects.filter((p) => p.status === 'completed').length}
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-muted/50 border-b border-border">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Mã dự án
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Khách hàng
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Gói chụp
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Ngày chụp
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Giá trị
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Thanh toán
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Trạng thái
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Thao tác
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filteredProjects.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">
+                    {searchTerm || statusFilter !== 'all'
+                      ? 'Không tìm thấy dự án nào phù hợp'
+                      : 'Chưa có dự án nào. Nhấn "Tạo dự án" để bắt đầu.'}
+                  </td>
+                </tr>
+              ) : (
+                filteredProjects.map((project) => (
+                  <tr
+                    key={project.id}
+                    className="hover:bg-muted/30 transition-colors"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-mono text-sm font-medium text-foreground">{project.project_code}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-foreground">{project.customer_name}</div>
+                      <div className="text-sm text-muted-foreground">{project.customer_phone}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 text-sm text-foreground">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        {project.package_name || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        {formatDateShort(project.shoot_date)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        {formatCurrency(project.payment?.final || 0)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge className={paymentStatusColors[project.payment?.status || 'unpaid']}>
+                        {project.payment?.status === 'unpaid' && 'Chưa thanh toán'}
+                        {project.payment?.status === 'deposit_paid' && 'Đã đặt cọc'}
+                        {project.payment?.status === 'partially_paid' && 'Thanh toán 1 phần'}
+                        {project.payment?.status === 'fully_paid' && 'Đã thanh toán'}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge className={statusColors[project.status]}>
+                        {statusLabels[project.status]}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex justify-end gap-2">
+                        {canConfirm && project.status === 'pending' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleConfirmProject(project)}
+                            disabled={confirmingId === project.id}
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
+                            title="Xác nhận dự án"
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteProject(project)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            title="Xóa dự án"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
-            </p>
-          </div>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-          <div className={viewMode === 'grid' ? 'grid gap-6 md:grid-cols-2 lg:grid-cols-3' : 'space-y-4'}>
-            {filteredProjects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onClick={() => handleProjectClick(project)}
-              />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Add/Edit Project Modal */}
-      {isModalOpen && !selectedProject && (
-        <AddProjectModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSuccess={() => {
-            setIsModalOpen(false);
-            fetchProjects();
-          }}
-        />
-      )}
-
-      {/* Project Detail Modal */}
-      {selectedProject && (
-        <Modal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedProject(null);
-          }}
-          title={`${selectedProject.project_code} - ${selectedProject.customer_name}`}
-          size="xl"
-        >
-          <div className="space-y-6">
-            {/* Status Badge */}
-            <div className="flex items-center gap-2 pb-4 border-b">
-              <div className={`px-4 py-2 rounded-full text-sm font-semibold border ${statusColors[selectedProject.status]}`}>
-                {statusLabels[selectedProject.status]}
-              </div>
-            </div>
-
-            {/* Customer Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Tên khách hàng</p>
-                <p className="font-semibold mt-1">{selectedProject.customer_name}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Số điện thoại</p>
-                <p className="font-medium mt-1">{selectedProject.customer_phone}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium mt-1">{selectedProject.customer_email}</p>
-              </div>
-            </div>
-
-            {/* Package Info */}
-            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-              <p className="text-sm font-medium text-muted-foreground mb-2">Gói chụp</p>
-              <p className="text-lg font-bold mb-3">{selectedProject.package_name}</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Giá gốc</p>
-                  <p className="font-semibold">{formatCurrency(selectedProject.package_price)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Giảm giá</p>
-                  <p className="font-semibold text-red-600">{formatCurrency(selectedProject.package_discount)}</p>
-                </div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-primary/10">
-                <p className="text-xs text-muted-foreground">Tổng cộng</p>
-                <p className="text-2xl font-bold text-primary">{formatCurrency(selectedProject.package_final_price)}</p>
-              </div>
-            </div>
-
-            {/* Shoot Details */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Ngày chụp</p>
-                <p className="font-medium mt-1">{formatDateShort(selectedProject.shoot_date)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Giờ chụp</p>
-                <p className="font-medium mt-1">{selectedProject.shoot_time}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-sm text-muted-foreground">Địa điểm</p>
-                <p className="font-medium mt-1">{selectedProject.location}</p>
-              </div>
-            </div>
-
-            {/* Payment Info */}
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-3">Thanh toán</p>
-              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
-                <div>
-                  <p className="text-xs text-muted-foreground">Đặt cọc</p>
-                  <p className="font-semibold mt-1">{formatCurrency(selectedProject.payment.deposit)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Đã thanh toán</p>
-                  <p className="font-semibold text-green-600 mt-1">{formatCurrency(selectedProject.payment.paid)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Còn lại</p>
-                  <p className="font-semibold text-orange-600 mt-1">
-                    {formatCurrency(selectedProject.payment.final - selectedProject.payment.paid)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Notes */}
-            {selectedProject.notes && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Ghi chú</p>
-                <p className="mt-2 bg-muted/50 p-3 rounded-lg text-sm">{selectedProject.notes}</p>
-              </div>
-            )}
-
-            <ModalFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setSelectedProject(null);
-                }}
-              >
-                Đóng
-              </Button>
-              {canConfirmProject && selectedProject.status === 'pending' && (
-                <Button
-                  onClick={handleConfirmProject}
-                  disabled={confirmLoading}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {confirmLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      Đang xác nhận...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Xác nhận dự án
-                    </>
-                  )}
-                </Button>
-              )}
-              <Button>Chỉnh sửa</Button>
-            </ModalFooter>
-          </div>
-        </Modal>
-      )}
+      {/* Add Project Modal */}
+      <AddProjectModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => {
+          setIsModalOpen(false);
+          fetchProjects();
+        }}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { AddEmployeeModal } from '@/components/employees/AddEmployeeModal';
 import type { Employee } from '@/lib/types';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
+import { toast, confirm } from '@/lib/toast';
 
 const roleLabels: Record<string, string> = {
   'Photo/Retouch': 'Photo/Retouch',
@@ -65,11 +66,11 @@ export default function EmployeesPage() {
 
     try {
       await api.delete(`/employees/${employee.id}`);
-      alert('Đã xóa nhân viên thành công!');
+      toast.success('Đã xóa nhân viên thành công!');
       fetchEmployees();
     } catch (error) {
       console.error('Failed to delete employee:', error);
-      alert('Không thể xóa nhân viên. Vui lòng thử lại.');
+      toast.error('Không thể xóa nhân viên. Vui lòng thử lại.');
     }
   };
 
