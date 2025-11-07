@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Search, Trash2, Check, Calendar, DollarSign, Package, Eye, X } from 'lucide-react';
+import { Plus, Search, Trash2, Check, Calendar, DollarSign, Package, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
