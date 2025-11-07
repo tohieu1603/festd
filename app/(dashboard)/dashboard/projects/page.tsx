@@ -5,7 +5,6 @@ import { Plus, Search, Trash2, Calendar, DollarSign, Package, Eye, Pencil } from
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { Select } from '@/components/ui/Select';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { AddProjectModal } from '@/components/projects/AddProjectModal';
 import type { Project, ProjectStatus } from '@/lib/types';
