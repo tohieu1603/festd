@@ -164,6 +164,13 @@ export function AddProjectModal({ isOpen, onClose, onSuccess, project }: AddProj
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation
+    if (!formData.team.main_photographer.employee_id) {
+      toast.error('Vui lòng chọn Photographer chính!');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -563,12 +570,15 @@ export function AddProjectModal({ isOpen, onClose, onSuccess, project }: AddProj
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide flex items-center gap-2">
                   <Camera className="h-4 w-4" />
                   Photographer Chính
+                  <span className="text-red-600 ml-1">*</span>
                 </h3>
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">Nhân viên</label>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Nhân viên <span className="text-red-600">*</span>
+                    </label>
                     <Select
                       value={formData.team.main_photographer.employee_id}
                       onChange={(e) => setFormData(prev => ({
@@ -785,7 +795,15 @@ export function AddProjectModal({ isOpen, onClose, onSuccess, project }: AddProj
           <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
             Hủy
           </Button>
-          <Button type="submit" disabled={loading || !formData.customer_name || !formData.package_price}>
+          <Button
+            type="submit"
+            disabled={
+              loading ||
+              !formData.customer_name ||
+              !formData.package_price ||
+              !formData.team.main_photographer.employee_id
+            }
+          >
             {loading ? 'Đang lưu...' : project ? 'Cập Nhật Dự Án' : 'Tạo Dự Án'}
           </Button>
         </ModalFooter>
